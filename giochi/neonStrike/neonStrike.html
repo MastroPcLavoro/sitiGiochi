@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>NEON STRIKE — Retro Arcade SHMUP</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
     --red: #ff2266;
     --orange: #ff6b00;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
     width: 100%; height: 100%;
     background: #000;
@@ -26,6 +26,8 @@
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: none; /* Previene scroll e zoom indesiderati */
+    overscroll-behavior: none;
   }
   body {
     display: flex;
@@ -99,6 +101,23 @@
   .hud-value.score { color: var(--cyan); text-shadow: 0 0 10px var(--cyan); }
   .hud-value.wave  { color: var(--magenta); text-shadow: 0 0 10px var(--magenta); }
   .hud-value.hi    { font-size: 14px; color: #c0e8ff; text-shadow: 0 0 6px var(--cyan); }
+
+  .pause-btn {
+    pointer-events: auto;
+    background: rgba(5, 5, 21, 0.55);
+    border: 1px solid rgba(0, 243, 255, 0.35);
+    color: var(--cyan);
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--cyan);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .pause-btn:active { background: rgba(0, 243, 255, 0.2); }
 
   .lives {
     display: flex;
@@ -189,6 +208,7 @@
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
     transition: opacity 0.4s;
+    overflow-y: auto;
   }
   .screen.hidden {
     opacity: 0;
@@ -399,6 +419,10 @@
           <div class="hud-value wave" id="waveVal">1</div>
         </div>
       </div>
+      
+      <!-- Pulsante Pausa Touch -->
+      <button class="pause-btn" id="pauseBtn">PAUSA</button>
+
       <div style="text-align:right;">
         <div class="hud-block">
           <div class="hud-label">LIVES</div>
@@ -427,7 +451,8 @@
     <div class="subtitle">RETRO ARCADE SHOOTER</div>
     <div class="instructions">
       <h3>CONTROLLI</h3>
-      <p><span class="key">←</span> <span class="key">→</span> &nbsp; Movimento laterale</p>
+      <p><span class="key">←</span> <span class="key">→</span> &nbsp; Movimento laterale (PC)</p>
+      <p>TOCCA E TRASCINA &nbsp; Movimento (Mobile)</p>
       <p>Sparo <span class="accent-green">AUTOMATICO</span></p>
       <p><span class="key">P</span> o <span class="key">ESC</span> &nbsp; Pausa</p>
     </div>
@@ -438,7 +463,7 @@
   <!-- Pause Screen -->
   <div class="screen pause-screen hidden" id="pauseScreen">
     <div class="pause-title">PAUSA</div>
-    <div class="pause-hint">Premi <span class="key">P</span> o <span class="key">ESC</span> per riprendere</div>
+    <div class="pause-hint">Tocca il pulsante o premi <span class="key">P</span>/<span class="key">ESC</span> per riprendere</div>
   </div>
 
   <!-- Game Over Screen -->
@@ -505,6 +530,10 @@ let gameOverTimer = 0;
 
 // Input
 const keys = {};
+
+// Touch State
+let touchActive = false;
+let touchOffsetX = 0;
 
 // ============================================================
 // AUDIO MANAGER (Web Audio API procedurale)
@@ -749,15 +778,25 @@ class Player {
     this.invuln = 0;
     this.thrust = 0;
     this.engineT = 0;
+    this.targetX = this.x; // Per il movimento touch fluido
   }
 
   update(dt, t) {
-    let dx = 0;
-    if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx -= 1;
-    if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
-    this.x += dx * this.speed * dt * 60;
-    this.x = clamp(this.x, this.w / 2 + 6, W - this.w / 2 - 6);
-    this.thrust = dx;
+    if (touchActive) {
+      // Movimento tramite touch (interpolazione fluida)
+      const diff = this.targetX - this.x;
+      this.x += diff * 0.35; // 0.35 = velocità di inseguimento del dito
+      this.x = clamp(this.x, this.w / 2 + 6, W - this.w / 2 - 6);
+      this.thrust = clamp(diff * 0.1, -1, 1);
+    } else {
+      // Movimento tramite tastiera
+      let dx = 0;
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx -= 1;
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+      this.x += dx * this.speed * dt * 60;
+      this.x = clamp(this.x, this.w / 2 + 6, W - this.w / 2 - 6);
+      this.thrust = dx;
+    }
 
     if (t - this.lastShot > this.fireRate) {
       this.shoot();
@@ -1441,6 +1480,7 @@ function startGame() {
   pendingSpawns = 0; spawnDelay = 0;
   combo = 0; comboTimer = 0;
   shake = 0; flash = 0;
+  touchActive = false;
   gameOverPending = false; gameOverTimer = 0;
   announcement = { text: 'WAVE 1', color: '#ff00ff' };
   announcementTime = 2000;
@@ -1459,6 +1499,7 @@ function gameOver() {
   if (gameOverPending) return;
   gameOverPending = true;
   gameOverTimer = 1500;
+  touchActive = false;
   const isNewRecord = score > highScore;
   if (isNewRecord) {
     highScore = score;
@@ -1612,8 +1653,6 @@ function update(dt, t) {
     gameOverTimer -= dt * 1000;
     if (gameOverTimer <= 0) {
       gameOverPending = false;
-      showGameOverScreen(score > highScore || score === highScore ? score === parseInt(localStorage.getItem('neonStrike_highScore') || '0') : false);
-      //Più semplice: controlla se score >= highScore saved (già salvato in gameOver)
       const saved = parseInt(localStorage.getItem('neonStrike_highScore') || '0');
       showGameOverScreen(score === saved && score > 0);
     }
@@ -1734,7 +1773,7 @@ function gameLoop(t) {
 }
 
 // ============================================================
-// INPUT
+// INPUT - KEYBOARD
 // ============================================================
 window.addEventListener('keydown', (e) => {
   keys[e.key] = true;
@@ -1748,10 +1787,60 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
+// ============================================================
+// INPUT - TOUCH (Mobile Support)
+// ============================================================
+function getCanvasCoords(touch) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  return {
+    x: (touch.clientX - rect.left) * scaleX
+  };
+}
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (state !== STATES.PLAYING) return;
+  if (!touchActive && e.touches.length > 0) {
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch);
+    touchActive = true;
+    touchOffsetX = player.x - coords.x; // Mantieni l'offset iniziale
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (state === STATES.PLAYING && touchActive && e.touches.length > 0 && player) {
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch);
+    player.targetX = coords.x + touchOffsetX;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  touchActive = false;
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', (e) => {
+  e.preventDefault();
+  touchActive = false;
+}, { passive: false });
+
+// Previene menu di contesto al long press su mobile
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+// ============================================================
+// UI EVENTS
+// ============================================================
 document.getElementById('playBtn').addEventListener('click', startGame);
 document.getElementById('replayBtn').addEventListener('click', startGame);
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
 
-// Init
+// ============================================================
+// INIT
+// ============================================================
 initStars();
 document.getElementById('menuHiScore').textContent = highScore.toLocaleString();
 lastTime = performance.now();
