@@ -13,52 +13,30 @@
 <body>
     <div id="stars"></div>
 
-    <div id="app">
-        <div id="home-page" class="page active">
-            <header>
-                <div class="logo-container">
-                    <h1 class="site-title">GAME<span>VERSE</span></h1>
-                    <p class="subtitle">ARCADE HUB</p>
-                    <div class="divider">
-                        <span class="divider-line"></span>
-                        <i class="fas fa-joystick"></i>
-                        <span class="divider-line"></span>
-                    </div>
-                </div>
-                <div class="search-container">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="search-input" placeholder="Cerca un gioco..." autocomplete="off">
-                </div>
-            </header>
-
-            <main>
-                <div id="game-grid"></div>
-            </main>
-
-            <footer>
-                <p>GameVerse &copy; 2026 &mdash; Premi <kbd>ESC</kbd> per tornare alla home</p>
-            </footer>
-        </div>
-
-        <div id="game-page" class="page">
-            <div id="game-bar">
-                <button id="back-btn" title="Torna alla home">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Indietro</span>
-                </button>
-                <span id="game-title-display">Gioco</span>
-            </div>
-            <div id="game-container">
-                <div id="game-loader">
-                    <div class="loader-ring"></div>
-                    <p>Caricamento in corso...</p>
-                </div>
-                <iframe id="game-iframe" src="" frameborder="0" allowfullscreen></iframe>
+    <header>
+        <div class="logo-container">
+            <h1 class="site-title">GAME<span>VERSE</span></h1>
+            <p class="subtitle">ARCADE HUB</p>
+            <div class="divider">
+                <span class="divider-line"></span>
+                <i class="fas fa-joystick"></i>
+                <span class="divider-line"></span>
             </div>
         </div>
-    </div>
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="search-input" placeholder="Cerca un gioco..." autocomplete="off">
+        </div>
+    </header>
 
-    <script src="js/games-data.js"></script>
+    <main>
+        <div id="game-grid"></div>
+    </main>
+
+    <footer>
+        <p>GameVerse &copy; 2026</p>
+    </footer>
+
     <script src="js/main.js"></script>
 </body>
 </html>

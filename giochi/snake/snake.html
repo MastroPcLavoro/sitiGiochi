@@ -7,6 +7,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Courier New',monospace;overflow:hidden;flex-direction:column}
+.back{position:fixed;top:12px;left:12px;z-index:99;background:none;border:2px solid #39ff14;color:#39ff14;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'Courier New',monospace;font-size:14px;font-weight:700;text-decoration:none;transition:all .3s;display:flex;align-items:center;gap:6px}
+.back:hover{background:#39ff14;color:#0a0a1a;box-shadow:0 0 20px rgba(57,255,20,.4)}
 canvas{display:block;border:2px solid #39ff14;box-shadow:0 0 30px rgba(57,255,20,.25),inset 0 0 30px rgba(57,255,20,.05);background:#0d1a0d;border-radius:4px}
 #hud{display:flex;justify-content:center;gap:60px;margin-bottom:16px;color:#39ff14;font-size:18px;font-weight:700;text-shadow:0 0 10px rgba(57,255,20,.4);width:100%;max-width:600px}
 #hud span{letter-spacing:2px}
@@ -16,6 +18,7 @@ canvas{display:block;border:2px solid #39ff14;box-shadow:0 0 30px rgba(57,255,20
 </style>
 </head>
 <body>
+<a class="back" href="../../index.html">&#8592; Indietro</a>
 <div id="hud"><span>PUNTI <span class="val" id="score">0</span></span><span>LUNGHEZZA <span class="val" id="len">3</span></span></div>
 <canvas id="c"></canvas>
 <div id="msg"></div>
