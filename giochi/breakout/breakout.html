@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breakout</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Courier New',monospace;overflow:hidden;flex-direction:column}
+.back{position:fixed;top:12px;left:12px;z-index:99;background:none;border:2px solid #00f0ff;color:#00f0ff;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'Courier New',monospace;font-size:14px;font-weight:700;text-decoration:none;transition:all .3s;display:flex;align-items:center;gap:6px}
+.back:hover{background:#00f0ff;color:#0a0a1a;box-shadow:0 0 20px rgba(0,240,255,.4)}
+canvas{display:block;border:2px solid #00f0ff;box-shadow:0 0 30px rgba(0,240,255,.25),inset 0 0 30px rgba(0,240,255,.05);background:#111128;border-radius:4px}
+#hud{display:flex;justify-content:center;gap:60px;margin-bottom:16px;color:#00f0ff;font-size:18px;font-weight:700;text-shadow:0 0 10px rgba(0,240,255,.4);width:100%;max-width:780px}
+#hud span{letter-spacing:2px}
+#hud .val{color:#fff}
+#msg{position:absolute;color:#fff;font-family:'Orbitron',sans-serif;font-size:24px;letter-spacing:3px;text-shadow:0 0 20px rgba(0,240,255,.5);pointer-events:none;opacity:0;transition:opacity .4s}
+#msg.show{opacity:1}
+</style>
+</head>
+<body>
+<a class="back" href="../../index.html">&#8592; Indietro</a>
+<div id="hud"><span>PUNTI <span class="val" id="score">0</span></span><span>VITE <span class="val" id="lives">3</span></span></div>
+<canvas id="c"></canvas>
+<div id="msg"></div>
+<script>
+(function(){var c=document.getElementById('c'),ctx=c.getContext('2d'),W=780,H=500,cols=10,rows=6,cw=(W-9*4-4)/cols,rh=20,gap=4,padW=120,padH=14;c.width=W;c.height=H;var p={x:W/2-padW/2,y:H-40,w:padW,h:padH},b={x:W/2,y:H-55,r:6,dx:4,dy:-4},bk=[],score=0,lives=3,run=!1,ani,msgEl=document.getElementById('msg'),scoreEl=document.getElementById('score'),livesEl=document.getElementById('lives');function initBricks(){bk=[];for(var r=0;r<rows;r++)for(var cl=0;cl<cols;cl++){var x=cl*(cw+gap)+gap/2,y=r*(rh+gap)+40;bk.push({x:x,y:y,w:cw,h:rh,hp:1,clr:'hsl('+((rows-1-r)*42)+',80%,55%)'})}}function msg(t,d){msgEl.textContent=t;msgEl.classList.add('show');clearTimeout(msg._t);msg._t=setTimeout(function(){msgEl.classList.remove('show')},d||1500)}function reset(){b.x=W/2;b.y=H-55;b.dx=4;b.dy=-4;p.x=W/2-padW/2;run=!1}function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='rgba(0,240,255,.05)';ctx.fillRect(0,0,W,H);bk.forEach(function(k){if(k.hp>0){ctx.fillStyle=k.clr;ctx.shadowColor=k.clr;ctx.shadowBlur=12;ctx.fillRect(k.x,k.y,k.w,k.h);ctx.shadowBlur=0;ctx.strokeStyle='rgba(255,255,255,.12)';ctx.strokeRect(k.x,k.y,k.w,k.h)}});ctx.shadowColor='#00f0ff';ctx.shadowBlur=20;ctx.fillStyle='#00f0ff';ctx.beginPath();ctx.rect(p.x,p.y,p.w,p.h);ctx.fill();ctx.shadowBlur=25;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0}function update(){if(!run)return;b.x+=b.dx;b.y+=b.dy;if(b.x-b.r<0||b.x+b.r>W)b.dx=-b.dx;if(b.y-b.r<0)b.dy=-b.dy;if(b.y+b.r>H){lives--;livesEl.textContent=lives;if(lives<=0){msg('GAME OVER',2e3);run=!1;setTimeout(function(){score=0;lives=3;scoreEl.textContent='0';livesEl.textContent='3';initBricks();reset()},2500)}else{msg('Vita persa!',1200);reset()}return}if(b.x>p.x-b.r&&b.x<p.x+p.w+b.r&&b.y+b.r>p.y&&b.y-b.r<p.y+p.h){var hit=b.x-(p.x+p.w/2);b.dx=hit*0.1;b.dy=-Math.abs(b.dy);b.y=p.y-b.r-1}bk.forEach(function(k){if(k.hp>0&&b.x>k.x-b.r&&b.x<k.x+k.w+b.r&&b.y>k.y-b.r&&b.y<k.y+k.h+b.r){k.hp=0;score+=10;scoreEl.textContent=score;var o=k.y+k.h/2;b.y<o?b.dy=-Math.abs(b.dy):b.dy=Math.abs(b.dy);if(b.x<k.x||b.x>k.x+k.w)b.dx=-b.dx}});if(bk.every(function(k){return k.hp===0})){msg('VITTORIA!',2e3);run=!1;setTimeout(function(){score=0;scoreEl.textContent='0';initBricks();reset()},2500)}}function loop(){update();draw();ani=requestAnimationFrame(loop)}document.addEventListener('mousemove',function(e){var rect=c.getBoundingClientRect(),mx=e.clientX-rect.left;p.x=Math.max(0,Math.min(W-p.w,mx/W*rect.width))});document.addEventListener('click',function(){if(!run&&lives>0){run=!0;msgEl.classList.remove('show')}});initBricks();reset();msg('CLICK per iniziare!',3e3);loop()})();
+</script>
+</body>
+</html>
