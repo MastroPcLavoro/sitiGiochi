@@ -41,20 +41,17 @@
     },
 
     async loadGames() {
-      var inline = document.getElementById('game-manifest-data');
-      if (inline) {
-        try {
-          this.games = JSON.parse(inline.textContent);
-          return;
-        } catch (_) {}
+      if (typeof GIOCHI !== 'undefined' && GIOCHI.length) {
+        this.games = GIOCHI;
+        return;
       }
       try {
         var res = await fetch('giochi/manifest.json');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         this.games = await res.json();
       } catch (e) {
-        console.warn('fetch fallito, uso dati inline:', e);
-        this.games = this.games.length ? this.games : [];
+        console.warn('fetch fallito, nessun gioco trovato:', e);
+        this.games = [];
       }
     },
 
