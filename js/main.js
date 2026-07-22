@@ -2,10 +2,9 @@
   'use strict';
 
   var GIOCHI = [
-    { id: 'breakout',  title: 'Breakout',    desc: 'Rompi tutti i mattoni con la pallina!' },
-    { id: 'snake',     title: 'Snake',       desc: 'Il classico serpente mangia-mele' },
     { id: 'neonStrike',title: 'Neon Strike', desc: 'Retro Arcade SHMUP' },
-    { id: 'neonVoid',  title: 'Neon Void',   desc: "Shoot 'em up spaziale" }
+    { id: 'neonVoid',  title: 'Neon Void',   desc: "Shoot 'em up spaziale" }.
+    { id: 'neonVoidV2',  title: 'Neon Void V2',   desc: "Shoot 'em up spaziale V2" }
   ];
 
   var grid = document.getElementById('game-grid');
