@@ -14,5 +14,15 @@
         "id": "neonStrike",
         "title": "neonStrike",
         "desc": "glm"
+    },
+    {
+        "id": "neonChess",
+        "title": "neonChess",
+        "desc": "scacchi"
+    },
+    {
+        "id": "tetris",
+        "title": "tetris",
+        "desc": "tetris"
     }
 ]
