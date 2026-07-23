@@ -4,7 +4,9 @@
   var GIOCHI = [
     { id: 'neonStrike',title: 'Neon Strike', desc: 'Retro Arcade SHMUP' },
     { id: 'neonVoid',  title: 'Neon Void',   desc: "Shoot 'em up spaziale" },
-    { id: 'neonVoidV2',  title: 'Neon Void V2',   desc: "Shoot 'em up spaziale V2" }
+    { id: 'neonVoidV2',  title: 'Neon Void V2',   desc: "Shoot 'em up spaziale V2" },
+    { id: 'tetris',  title: 'tetris',   desc: "tetris" },
+    { id: 'neonChess',  title: 'neonChess',   desc: "scacchi" }
   ];
 
   var grid = document.getElementById('game-grid');
