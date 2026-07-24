@@ -7,7 +7,9 @@
     { id: 'neonVoidV2',  title: 'Neon Void V2',   desc: "Shoot 'em up spaziale V2" },
     { id: 'tetris',  title: 'tetris',   desc: "tetris" },
     { id: 'neonChess',  title: 'neonChess',   desc: "scacchi" },
-    { id: 'centipede',  title: 'centipede',   desc: "centipede " }
+    { id: 'centipede',  title: 'centipede',   desc: "centipede " },
+    { id: 'neonDama',  title: 'neonDama',   desc: "neonDama " },
+    { id: 'asteroid',  title: 'asteroid',   desc: "asteroid " }
   ];
 
   var grid = document.getElementById('game-grid');
