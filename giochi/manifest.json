@@ -24,5 +24,10 @@
         "id": "tetris",
         "title": "tetris",
         "desc": "tetris"
+    },
+    {
+        "id": "cetipede",
+        "title": "centipede",
+        "desc": "centipede"
     }
 ]
