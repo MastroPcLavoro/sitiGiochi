@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Neon Centipede - Synthwave Arcade</title>
+
+  <style>
+    /* ============================================================
+       CSS - NEON / SYNTHWAVE UI
+       ============================================================ */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #04010e;
+      font-family: "Courier New", Courier, monospace;
+
+      /* Blocco di scroll, zoom e selezione testo */
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      overscroll-behavior: none;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+      background: #04010e;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 22px;
+      padding: 24px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 25%, rgba(255, 0, 255, 0.16), transparent 42%),
+        radial-gradient(circle at 50% 80%, rgba(0, 255, 255, 0.12), transparent 45%),
+        rgba(2, 0, 10, 0.82);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .title {
+      font-size: clamp(36px, 9vw, 88px);
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #00ffff;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 8px #00ffff,
+        0 0 18px #00ffff,
+        0 0 42px #00ffff,
+        0 0 80px #0088ff;
+    }
+
+    .title.gameover {
+      color: #ff00ff;
+      text-shadow:
+        0 0 8px #ff00ff,
+        0 0 18px #ff00ff,
+        0 0 42px #ff00ff,
+        0 0 80px #ff00aa;
+    }
+
+    .subtitle {
+      font-size: clamp(16px, 3.4vw, 28px);
+      color: #39ff14;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 6px #39ff14,
+        0 0 16px #39ff14;
+    }
+
+    #finalScore {
+      font-size: clamp(34px, 8vw, 72px);
+      font-weight: 900;
+      color: #ffff00;
+      text-shadow:
+        0 0 8px #ffff00,
+        0 0 20px #ffff00,
+        0 0 48px #ffaa00;
+    }
+
+    .button {
+      appearance: none;
+      border: 3px solid #00ffff;
+      background: rgba(0, 255, 255, 0.08);
+      color: #00ffff;
+      font-family: inherit;
+      font-size: clamp(20px, 4.5vw, 34px);
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 16px 34px;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow:
+        0 0 12px rgba(0, 255, 255, 0.55),
+        inset 0 0 18px rgba(0, 255, 255, 0.18);
+      text-shadow:
+        0 0 6px #00ffff,
+        0 0 18px #00ffff;
+      transition: transform 0.08s ease, background 0.12s ease;
+      pointer-events: auto;
+    }
+
+    .button:hover {
+      background: rgba(0, 255, 255, 0.16);
+    }
+
+    .button:active {
+      transform: scale(0.95);
+    }
+
+    .footer {
+      max-width: 720px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: clamp(13px, 2.6vw, 18px);
+      line-height: 1.55;
+      letter-spacing: 1px;
+    }
+
+    .footer b {
+      color: #ff00ff;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Schermata START -->
+  <div id="startScreen" class="overlay">
+    <div class="title">Neon Centipede</div>
+    <div class="subtitle">Synthwave Arcade Shooter</div>
+    <button id="startBtn" class="button">▶ Start</button>
+    <div class="footer">
+      <b>PC:</b> WASD / Frecce direzionali — Spazio o Click per sparare<br />
+      <b>Mobile:</b> Joystick virtuale in basso a sinistra — Pulsante FIRE in basso a destra<br />
+      Distruggi il centopiedi, evita che raggiunga la zona inferiore e sopravvivi alle ondate neon.
+    </div>
+  </div>
+
+  <!-- Schermata GAME OVER -->
+  <div id="gameOverScreen" class="overlay hidden">
+    <div class="title gameover">Game Over</div>
+    <div class="subtitle">Punteggio finale</div>
+    <div id="finalScore">0</div>
+    <button id="restartBtn" class="button">↻ Restart</button>
+  </div>
+
+  <script>
+    "use strict";
+
+    /* ============================================================
+       SETUP BASE
+       ============================================================ */
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const finalScoreEl = document.getElementById("finalScore");
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    let W = 0;
+    let H = 0;
+    let DPR = 1;
+    let game = null;
+
+    /**
+     * Ridimensiona il canvas a schermo intero.
+     * DPR viene limitato a 2 per evitare un costo eccessivo su mobile.
+     */
+    function resizeCanvas() {
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+      W = window.innerWidth;
+      H = window.innerHeight;
+
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+
+      // Coordinate di disegno in CSS pixel
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      if (game && typeof game.resize === "function") {
+        game.resize();
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 120));
+    resizeCanvas();
+
+    // Palette neon
+    const NEON = {
+      cyan: "#00FFFF",
+      magenta: "#FF00FF",
+      green: "#39FF14",
+      yellow: "#FFFF00",
+      bg: "#05010f"
+    };
+
+    const TAU = Math.PI * 2;
+
+    // Utility
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const randInt = (min, max) => Math.floor(rand(min, max + 1));
+    const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+
+    /**
+     * Collisione cerchio-rettangolo.
+     */
+    function circleRect(cx, cy, cr, rx, ry, rw, rh) {
+      const nearestX = clamp(cx, rx, rx + rw);
+      const nearestY = clamp(cy, ry, ry + rh);
+      return dist(cx, cy, nearestX, nearestY) <= cr;
+    }
+
+    /* ============================================================
+       AUDIO MANAGER - Suoni sintetici 8-bit/neon
+       Nessun file audio esterno: solo Web Audio API.
+       ============================================================ */
+    class AudioManager {
+      constructor() {
+        this.ctx = null;
+        this.master = null;
+      }
+
+      // Da chiamare dopo un gesto utente per sbloccare l'audio
+      resume() {
+        if (!this.ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+
+          this.ctx = new AC();
+          this.master = this.ctx.createGain();
+          this.master.gain.value = 0.18;
+          this.master.connect(this.ctx.destination);
+        }
+
+        if (this.ctx.state === "suspended") {
+          this.ctx.resume();
+        }
+      }
+
+      tone(type, freqStart, freqEnd, duration, volume = 0.4, attack = 0.004) {
+        if (!this.ctx) return;
+
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(Math.max(1, freqStart), t);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t + duration);
+
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.linearRampToValueAtTime(volume, t + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+        osc.connect(gain);
+        gain.connect(this.master);
+
+        osc.start(t);
+        osc.stop(t + duration + 0.03);
+      }
+
+      noise(duration = 0.28, volume = 0.45, filterStart = 1400, filterEnd = 120) {
+        if (!this.ctx) return;
+
+        const t = this.ctx.currentTime;
+        const length = Math.max(1, Math.floor(this.ctx.sampleRate * duration));
+        const buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < length; i++) {
+          const fade = 1 - i / length;
+          data[i] = (Math.random() * 2 - 1) * fade * fade;
+        }
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(filterStart, t);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(20, filterEnd), t + duration);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.master);
+
+        src.start(t);
+        src.stop(t + duration + 0.03);
+      }
+
+      shoot() {
+        this.tone("square", 980, 240, 0.085, 0.20);
+      }
+
+      explosion() {
+        this.noise(0.28, 0.48, 1500, 110);
+        this.tone("sawtooth", 210, 42, 0.22, 0.16);
+      }
+
+      obstacleHit() {
+        this.tone("triangle", 360, 150, 0.065, 0.18);
+      }
+
+      drop() {
+        this.tone("sine", 240, 95, 0.11, 0.18);
+      }
+
+      playerHit() {
+        this.noise(0.42, 0.62, 950, 80);
+        this.tone("sawtooth", 340, 35, 0.42, 0.28);
+      }
+
+      levelUp() {
+        const notes = [440, 660, 880, 1100];
+        notes.forEach((f, i) => {
+          setTimeout(() => this.tone("square", f, f * 1.03, 0.11, 0.18), i * 75);
+        });
+      }
+
+      gameOver() {
+        const notes = [330, 262, 196, 131];
+        notes.forEach((f, i) => {
+          setTimeout(() => this.tone("sawtooth", f, f * 0.55, 0.32, 0.22), i * 180);
+        });
+      }
+    }
+
+    /* ============================================================
+       INPUT MANAGER
+       - Tastiera: WASD / Frecce
+       - Mouse: click sinistro = fuoco
+       - Touch: joystick virtuale + pulsante FIRE
+       ============================================================ */
+    class InputManager {
+      constructor(canvas) {
+        this.canvas = canvas;
+
+        this.keys = {};
+        this.mouseFire = false;
+        this.touchFire = false;
+
+        // Mostra i controlli touch se il dispositivo è touch/coarse
+        this.showTouch =
+          (window.matchMedia ? window.matchMedia("(pointer: coarse)").matches : false) ||
+          ("ontouchstart" in window);
+
+        // Joystick virtuale
+        this.joy = {
+          baseX: 0,
+          baseY: 0,
+          knobX: 0,
+          knobY: 0,
+          r: 64,
+          dx: 0,
+          dy: 0,
+          touchId: null,
+          active: false
+        };
+
+        // Pulsante FIRE
+        this.fire = {
+          x: 0,
+          y: 0,
+          r: 74,
+          touchId: null,
+          active: false
+        };
+
+        this.bindEvents();
+        this.resize();
+      }
+
+      resize() {
+        const minSide = Math.min(W, H);
+
+        // Joystick in basso a sinistra
+        this.joy.r = clamp(minSide * 0.09, 48, 80);
+        this.joy.baseX = this.joy.r + 26;
+        this.joy.baseY = H - this.joy.r - 26;
+
+        if (!this.joy.active) {
+          this.joy.knobX = this.joy.baseX;
+          this.joy.knobY = this.joy.baseY;
+        }
+
+        // FIRE in basso a destra
+        this.fire.r = clamp(minSide * 0.115, 58, 96);
+        this.fire.x = W - this.fire.r - 30;
+        this.fire.y = H - this.fire.r - 30;
+      }
+
+      bindEvents() {
+        // Tastiera
+        window.addEventListener("keydown", (e) => {
+          if (
+            [
+              "ArrowUp",
+              "ArrowDown",
+              "ArrowLeft",
+              "ArrowRight",
+              "Space",
+              "KeyW",
+              "KeyA",
+              "KeyS",
+              "KeyD"
+            ].includes(e.code)
+          ) {
+            e.preventDefault();
+          }
+
+          this.keys[e.code] = true;
+        });
+
+        window.addEventListener("keyup", (e) => {
+          this.keys[e.code] = false;
+        });
+
+        // Mouse
+        this.canvas.addEventListener("mousedown", (e) => {
+          if (e.button === 0) this.mouseFire = true;
+        });
+
+        window.addEventListener("mouseup", (e) => {
+          if (e.button === 0) this.mouseFire = false;
+        });
+
+        /*
+          GESTIONE TOUCH
+          - preventDefault() blocca scroll/zoom durante il gioco
+          - ogni touch viene identificato da identifier
+          - il primo touch utile a sinistra muove il joystick
+          - il primo touch utile a destra spara
+        */
+        this.canvas.addEventListener(
+          "touchstart",
+          (e) => {
+            e.preventDefault();
+            this.showTouch = true;
+
+            for (const touch of e.changedTouches) {
+              this.onTouchStart(touch);
+            }
+          },
+          { passive: false }
+        );
+
+        this.canvas.addEventListener(
+          "touchmove",
+          (e) => {
+            e.preventDefault();
+
+            for (const touch of e.changedTouches) {
+              this.onTouchMove(touch);
+            }
+          },
+          { passive: false }
+        );
+
+        const touchEndHandler = (e) => {
+          e.preventDefault();
+
+          for (const touch of e.changedTouches) {
+            this.onTouchEnd(touch);
+          }
+        };
+
+        this.canvas.addEventListener("touchend", touchEndHandler, { passive: false });
+        this.canvas.addEventListener("touchcancel", touchEndHandler, { passive: false });
+
+        // Disabilita menu contestuale e gesture zoom
+        window.addEventListener("contextmenu", (e) => e.preventDefault());
+        document.addEventListener("gesturestart", (e) => e.preventDefault());
+        document.addEventListener("dblclick", (e) => e.preventDefault());
+      }
+
+      insideFire(x, y) {
+        return (
+          dist(x, y, this.fire.x, this.fire.y) <= this.fire.r * 1.35 ||
+          (x > W * 0.62 && y > H * 0.58)
+        );
+      }
+
+      insideJoy(x, y) {
+        return (
+          dist(x, y, this.joy.baseX, this.joy.baseY) <= this.joy.r * 2.15 ||
+          (x < W * 0.45 && y > H * 0.45)
+        );
+      }
+
+      onTouchStart(touch) {
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        // Priorità al pulsante FIRE
+        if (this.fire.touchId === null && this.insideFire(x, y)) {
+          this.fire.touchId = touch.identifier;
+          this.fire.active = true;
+          this.touchFire = true;
+          return;
+        }
+
+        // Poi joystick
+        if (this.joy.touchId === null && this.insideJoy(x, y)) {
+          this.joy.touchId = touch.identifier;
+          this.joy.active = true;
+          this.updateJoystick(x, y);
+        }
+      }
+
+      onTouchMove(touch) {
+        if (touch.identifier === this.joy.touchId) {
+          this.updateJoystick(touch.clientX, touch.clientY);
+        }
+      }
+
+      onTouchEnd(touch) {
+        if (touch.identifier === this.joy.touchId) {
+          this.joy.touchId = null;
+          this.joy.active = false;
+          this.joy.dx = 0;
+          this.joy.dy = 0;
+          this.joy.knobX = this.joy.baseX;
+          this.joy.knobY = this.joy.baseY;
+        }
+
+        if (touch.identifier === this.fire.touchId) {
+          this.fire.touchId = null;
+          this.fire.active = false;
+          this.touchFire = false;
+        }
+      }
+
+      updateJoystick(x, y) {
+        let dx = (x - this.joy.baseX) / this.joy.r;
+        let dy = (y - this.joy.baseY) / this.joy.r;
+
+        const mag = Math.hypot(dx, dy);
+
+        // Il knob non esce dal raggio del joystick
+        if (mag > 1) {
+          dx /= mag;
+          dy /= mag;
+        }
+
+        this.joy.dx = dx;
+        this.joy.dy = dy;
+        this.joy.knobX = this.joy.baseX + dx * this.joy.r;
+        this.joy.knobY = this.joy.baseY + dy * this.joy.r;
+      }
+
+      get moveX() {
+        let x = 0;
+
+        if (this.keys["ArrowLeft"] || this.keys["KeyA"]) x -= 1;
+        if (this.keys["ArrowRight"] || this.keys["KeyD"]) x += 1;
+
+        if (this.joy.active) x += this.joy.dx;
+
+        return clamp(x, -1, 1);
+      }
+
+      get moveY() {
+        let y = 0;
+
+        if (this.keys["ArrowUp"] || this.keys["KeyW"]) y -= 1;
+        if (this.keys["ArrowDown"] || this.keys["KeyS"]) y += 1;
+
+        if (this.joy.active) y += this.joy.dy;
+
+        return clamp(y, -1, 1);
+      }
+
+      get firing() {
+        return !!(this.keys["Space"] || this.mouseFire || this.touchFire);
+      }
+
+      reset() {
+        this.keys = {};
+        this.mouseFire = false;
+        this.touchFire = false;
+
+        this.fire.touchId = null;
+        this.fire.active = false;
+
+        this.joy.touchId = null;
+        this.joy.active = false;
+        this.joy.dx = 0;
+        this.joy.dy = 0;
+        this.joy.knobX = this.joy.baseX;
+        this.joy.knobY = this.joy.baseY;
+      }
+
+      /**
+       * Rendering neon dei controlli touch.
+       */
+      draw(ctx) {
+        if (!this.showTouch) return;
+
+        ctx.save();
+
+        // Joystick
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = NEON.cyan;
+        ctx.strokeStyle = NEON.cyan;
+
+        ctx.beginPath();
+        ctx.arc(this.joy.baseX, this.joy.baseY, this.joy.r, 0, TAU);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.82;
+        ctx.fillStyle = NEON.cyan;
+        ctx.beginPath();
+        ctx.arc(this.joy.knobX, this.joy.knobY, this.joy.r * 0.42, 0, TAU);
+        ctx.fill();
+
+        // Pulsante FIRE
+        const pressed = this.fire.active;
+
+        ctx.globalAlpha = pressed ? 0.88 : 0.58;
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = NEON.magenta;
+        ctx.strokeStyle = NEON.magenta;
+
+        ctx.beginPath();
+        ctx.arc(this.fire.x, this.fire.y, this.fire.r, 0, TAU);
+        ctx.stroke();
+
+        ctx.fillStyle = pressed ? "rgba(255,0,255,0.42)" : "rgba(255,0,255,0.16)";
+        ctx.fill();
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = NEON.magenta;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.floor(this.fire.r * 0.34)}px "Courier New", monospace`;
+        ctx.fillText("FIRE", this.fire.x, this.fire.y);
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       PARTICLE SYSTEM - Esplosioni neon
+       ============================================================ */
+    class Particle {
+      constructor(x, y, color, speedScale = 1) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+
+        const angle = rand(0, TAU);
+        const speed = rand(45, 255) * speedScale;
+
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+
+        this.life = rand(0.32, 0.86);
+        this.maxLife = this.life;
+        this.size = rand(1.4, 4.6);
+      }
+
+      update(dt) {
+        this.life -= dt;
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        this.vx *= 0.982;
+        this.vy *= 0.982;
+        this.vy += 135 * dt;
+      }
+
+      get dead() {
+        return this.life <= 0;
+      }
+
+      draw(ctx) {
+        const alpha = clamp(this.life / this.maxLife, 0, 1);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.4, this.size * alpha), 0, TAU);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    class ParticleSystem {
+      constructor() {
+        this.items = [];
+      }
+
+      emit(x, y, color, count = 18, speedScale = 1) {
+        for (let i = 0; i < count; i++) {
+          this.items.push(new Particle(x, y, color, speedScale));
+        }
+
+        // Limite di sicurezza per le performance
+        if (this.items.length > 520) {
+          this.items.splice(0, this.items.length - 520);
+        }
+      }
+
+      update(dt) {
+        for (let i = this.items.length - 1; i >= 0; i--) {
+          const p = this.items[i];
+          p.update(dt);
+
+          if (p.dead) {
+            this.items.splice(i, 1);
+          }
+        }
+      }
+
+      draw(ctx) {
+        for (const p of this.items) {
+          p.draw(ctx);
+        }
+      }
+
+      clear() {
+        this.items.length = 0;
+      }
+    }
+
+    /* ============================================================
+       BULLET - Proiettile con scia luminosa
+       ============================================================ */
+    class Bullet {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.r = 4.2;
+        this.speed = 730;
+        this.active = true;
+        this.trail = [];
+      }
+
+      update(dt) {
+        this.trail.push({ x: this.x, y: this.y });
+        if (this.trail.length > 9) this.trail.shift();
+
+        this.y -= this.speed * dt;
+
+        if (this.y < -30) {
+          this.active = false;
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+
+        // Scia neon
+        for (let i = 0; i < this.trail.length; i++) {
+          const p = this.trail[i];
+          const t = (i + 1) / this.trail.length;
+
+          ctx.globalAlpha = t * 0.42;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = NEON.yellow;
+          ctx.fillStyle = NEON.yellow;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 1 + this.r * t, 0, TAU);
+          ctx.fill();
+        }
+
+        // Corpo del proiettile
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = NEON.yellow;
+        ctx.fillStyle = "#ffffff";
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, TAU);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       PLAYER - Astronave nella fascia bassa
+       ============================================================ */
+    class Player {
+      constructor() {
+        this.w = 36;
+        this.h = 40;
+        this.r = 17;
+
+        this.x = W / 2;
+        this.y = H * 0.88;
+
+        this.speed = 365;
+        this.zoneTop = H * 0.74;
+
+        this.trail = [];
+        this.invulnerable = 0;
+      }
+
+      resize(zoneTop = H * 0.74) {
+        this.zoneTop = zoneTop;
+
+        this.x = clamp(this.x, this.w / 2 + 8, W - this.w / 2 - 8);
+        this.y = clamp(this.y, this.zoneTop + this.h / 2, H - this.h / 2 - 14);
+      }
+
+      hit() {
+        if (this.invulnerable > 0) return false;
+
+        this.invulnerable = 2.0;
+        return true;
+      }
+
+      update(dt, input) {
+        let dx = input.moveX;
+        let dy = input.moveY;
+
+        // Normalizza la diagonale
+        const mag = Math.hypot(dx, dy);
+        if (mag > 1) {
+          dx /= mag;
+          dy /= mag;
+        }
+
+        this.x += dx * this.speed * dt;
+        this.y += dy * this.speed * dt;
+
+        // Area di movimento: circa 25% inferiore dello schermo
+        this.x = clamp(this.x, this.w / 2 + 8, W - this.w / 2 - 8);
+        this.y = clamp(this.y, this.zoneTop + this.h / 2, H - this.h / 2 - 14);
+
+        // Scia del motore
+        if (Math.abs(dx) + Math.abs(dy) > 0.06) {
+          this.trail.push({
+            x: this.x,
+            y: this.y + this.h * 0.36
+          });
+
+          if (this.trail.length > 18) this.trail.shift();
+        } else if (this.trail.length) {
+          this.trail.shift();
+        }
+
+        if (this.invulnerable > 0) {
+          this.invulnerable -= dt;
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+
+        // Scia
+        for (let i = 0; i < this.trail.length; i++) {
+          const p = this.trail[i];
+          const t = (i + 1) / this.trail.length;
+
+          ctx.globalAlpha = t * 0.24;
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = NEON.cyan;
+          ctx.fillStyle = NEON.cyan;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2 + t * 7, 0, TAU);
+          ctx.fill();
+        }
+
+        // Lampeggio invulnerabilità
+        if (this.invulnerable > 0 && Math.floor(performance.now() / 90) % 2 === 0) {
+          ctx.globalAlpha = 0.32;
+        } else {
+          ctx.globalAlpha = 1;
+        }
+
+        // Corpo astronave
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = NEON.cyan;
+        ctx.strokeStyle = NEON.cyan;
+        ctx.fillStyle = "rgba(0,255,255,0.15)";
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.h / 2);
+        ctx.lineTo(this.x + this.w / 2, this.y + this.h / 2);
+        ctx.lineTo(this.x, this.y + this.h / 4);
+        ctx.lineTo(this.x - this.w / 2, this.y + this.h / 2);
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+
+        // Nucleo magenta
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = NEON.magenta;
+        ctx.fillStyle = NEON.magenta;
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - this.h * 0.04, 4.2, 0, TAU);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       OBSTACLE - Cristallo/fungo neon
+       ============================================================ */
+    class Obstacle {
+      constructor(col, row, cellW, cellH) {
+        this.col = col;
+        this.row = row;
+
+        this.health = 3;
+        this.maxHealth = 3;
+
+        this.updateRect(cellW, cellH);
+      }
+
+      updateRect(cellW, cellH) {
+        this.w = cellW * 0.82;
+        this.h = cellH * 0.82;
+
+        this.x = this.col * cellW + cellW / 2;
+        this.y = this.row * cellH + cellH / 2;
+      }
+
+      hit() {
+        this.health--;
+        return this.health <= 0;
+      }
+
+      intersectsBullet(b) {
+        return (
+          b.x + b.r > this.x - this.w / 2 &&
+          b.x - b.r < this.x + this.w / 2 &&
+          b.y + b.r > this.y - this.h / 2 &&
+          b.y - b.r < this.y + this.h / 2
+        );
+      }
+
+      draw(ctx) {
+        // 3 = verde, 2 = giallo, 1 = magenta
+        const colors = [NEON.magenta, NEON.yellow, NEON.green];
+        const color = colors[clamp(this.health - 1, 0, 2)];
+
+        const w = this.w / 2;
+        const h = this.h / 2;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = color;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = "rgba(0,0,0,0.36)";
+        ctx.lineWidth = 2.6;
+
+        // Forma cristallo
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.lineTo(w * 0.82, -h * 0.26);
+        ctx.lineTo(w, h * 0.36);
+        ctx.lineTo(0, h);
+        ctx.lineTo(-w, h * 0.36);
+        ctx.lineTo(-w * 0.82, -h * 0.26);
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+
+        // Riflesso interno
+        ctx.globalAlpha = 0.72;
+        ctx.beginPath();
+        ctx.moveTo(0, -h * 0.56);
+        ctx.lineTo(w * 0.46, 0);
+        ctx.lineTo(0, h * 0.56);
+        ctx.lineTo(-w * 0.46, 0);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       BACKGROUND - Griglia prospettica synthwave
+       ============================================================ */
+    class Background {
+      constructor() {
+        this.offset = 0;
+        this.stars = [];
+
+        for (let i = 0; i < 90; i++) {
+          this.stars.push({
+            x: Math.random(),
+            y: Math.random() * 0.52,
+            s: rand(0.4, 2.1),
+            tw: rand(0, TAU)
+          });
+        }
+      }
+
+      update(dt) {
+        // Scorrimento della griglia orizzontale
+        this.offset = (this.offset + dt * 0.22) % 1;
+
+        for (const s of this.stars) {
+          s.tw += dt * 2.2;
+        }
+      }
+
+      draw(ctx) {
+        // Cielo scuro
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, "#0b001c");
+        grad.addColorStop(0.48, "#05010f");
+        grad.addColorStop(1, "#020008");
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        const horizon = H * 0.30;
+
+        // Sole synthwave
+        const sunR = Math.min(W, H) * 0.18;
+        const sunX = W / 2;
+        const sunY = horizon;
+
+        ctx.save();
+
+        const sunGrad = ctx.createLinearGradient(0, sunY - sunR, 0, sunY);
+        sunGrad.addColorStop(0, "rgba(255,0,255,0.80)");
+        sunGrad.addColorStop(0.55, "rgba(255,80,0,0.55)");
+        sunGrad.addColorStop(1, "rgba(255,255,0,0.18)");
+
+        ctx.fillStyle = sunGrad;
+        ctx.shadowBlur = 70;
+        ctx.shadowColor = NEON.magenta;
+
+        // Mezzo sole sopra l'orizzonte
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, sunR, Math.PI, 0, true);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        // Stelle
+        ctx.save();
+        for (const s of this.stars) {
+          ctx.globalAlpha = 0.30 + Math.sin(s.tw) * 0.28;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(s.x * W, s.y * H, s.s, s.s);
+        }
+        ctx.restore();
+
+        // Griglia prospettica
+        ctx.save();
+        ctx.lineWidth = 1.4;
+
+        const cols = 16;
+
+        // Linee verticali convergenti
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = NEON.magenta;
+        ctx.strokeStyle = "rgba(255,0,255,0.30)";
+
+        for (let i = -cols; i <= cols; i++) {
+          const topX = W / 2 + i * (W / (cols * 5));
+          const bottomX = W / 2 + i * (W / cols);
+
+          ctx.beginPath();
+          ctx.moveTo(topX, horizon);
+          ctx.lineTo(bottomX, H);
+          ctx.stroke();
+        }
+
+        // Linee orizzontali che scorrono verso il basso
+        ctx.shadowColor = NEON.cyan;
+        ctx.strokeStyle = "rgba(0,255,255,0.28)";
+
+        const rows = 18;
+
+        for (let i = 0; i < rows; i++) {
+          const t = (i + this.offset) / rows;
+          const y = horizon + (H - horizon) * Math.pow(t, 2.4);
+
+          ctx.globalAlpha = 0.07 + t * 0.34;
+
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Linea dell'orizzonte
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = NEON.magenta;
+        ctx.strokeStyle = NEON.magenta;
+
+        ctx.beginPath();
+        ctx.moveTo(0, horizon);
+        ctx.lineTo(W, horizon);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       CENTIPEDE SEGMENT
+       ============================================================ */
+    class CentipedeSegment {
+      constructor(x, y, r, color, isHead = false) {
+        this.x = x;
+        this.y = y;
+        this.r = r;
+        this.color = color;
+        this.isHead = isHead;
+        this.alive = true;
+        this.wobble = rand(0, TAU);
+      }
+
+      update(dt) {
+        this.wobble += dt * (this.isHead ? 10 : 7);
+      }
+
+      draw(ctx) {
+        const pulse = this.isHead
+          ? 1.14 + Math.sin(this.wobble) * 0.08
+          : 1.0 + Math.sin(this.wobble) * 0.05;
+
+        const r = this.r * pulse;
+
+        ctx.save();
+
+        // Alone neon
+        ctx.shadowBlur = this.isHead ? 26 : 16;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r, 0, TAU);
+        ctx.fill();
+
+        // Centro scuro
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = "rgba(0,0,0,0.52)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r * 0.52, 0, TAU);
+        ctx.fill();
+
+        // Dettaglio luminoso
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#ffffff";
+
+        if (this.isHead) {
+          // Occhi della testa
+          ctx.beginPath();
+          ctx.arc(this.x - r * 0.30, this.y - r * 0.18, r * 0.15, 0, TAU);
+          ctx.arc(this.x + r * 0.30, this.y - r * 0.18, r * 0.15, 0, TAU);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, r * 0.18, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       CENTIPEDE
+       La testa si muove orizzontalmente.
+       Quando tocca bordo o ostacolo, scende di una riga.
+       I segmenti seguono la testa con un effetto "catena".
+       ============================================================ */
+    class Centipede {
+      constructor(game, length, speed, row = 1, dir = 1, startX = null) {
+        this.game = game;
+        this.speed = speed;
+        this.row = row;
+        this.dir = dir;
+        this.dropCooldown = 0;
+
+        this.r = clamp(Math.min(game.cellW, game.cellH) * 0.34, 8, 18);
+        this.spacing = this.r * 2.15;
+
+        this.segments = [];
+
+        const y = game.rowY(row);
+        const x = startX !== null ? startX : dir === 1 ? W * 0.18 : W * 0.82;
+
+        for (let i = 0; i < length; i++) {
+          const sx = x - dir * i * this.spacing;
+          const color = i === 0 ? NEON.magenta : i % 2 === 0 ? NEON.green : NEON.cyan;
+
+          this.segments.push(new CentipedeSegment(sx, y, this.r, color, i === 0));
+        }
+      }
+
+      get alive() {
+        return this.segments.length > 0;
+      }
+
+      update(dt) {
+        if (!this.alive) return;
+
+        const g = this.game;
+        const head = this.segments[0];
+
+        head.isHead = true;
+
+        if (this.dropCooldown > 0) {
+          this.dropCooldown -= dt;
+        }
+
+        // Movimento orizzontale della testa
+        head.x += this.dir * this.speed * dt;
+
+        // Movimento verticale fluido verso la riga corrente
+        const targetY = g.rowY(this.row);
+        const dy = targetY - head.y;
+        const verticalSpeed = this.speed * 1.4 + 150;
+
+        if (Math.abs(dy) > 1) {
+          head.y += Math.sign(dy) * Math.min(Math.abs(dy), verticalSpeed * dt);
+        } else {
+          head.y = targetY;
+        }
+
+        // Collisione con bordi laterali: scende e inverte
+        if (head.x < head.r + 2 || head.x > W - head.r - 2) {
+          head.x = clamp(head.x, head.r + 2, W - head.r - 2);
+          this.drop();
+        }
+
+        // Collisione con ostacolo: scende immediatamente
+        if (
+          this.dropCooldown <= 0 &&
+          Math.abs(head.y - targetY) < Math.max(8, g.cellH * 0.35)
+        ) {
+          const col = Math.floor(head.x / g.cellW);
+          const key = col + "," + this.row;
+
+          if (g.obstacles.has(key)) {
+            this.drop();
+          }
+        }
+
+        // Se raggiunge la zona giocatore => game over / perdita vita
+        if (
+          g.rowY(this.row) >= g.playerZoneTop - head.r ||
+          head.y + head.r >= g.playerZoneTop
+        ) {
+          g.playerHit("centipede");
+          return;
+        }
+
+        // Aggiorna testa
+        head.update(dt);
+
+        // I segmenti seguono quello precedente
+        for (let i = 1; i < this.segments.length; i++) {
+          const seg = this.segments[i];
+          const prev = this.segments[i - 1];
+
+          const dx = prev.x - seg.x;
+          const ddy = prev.y - seg.y;
+          const d = Math.hypot(dx, ddy) || 0.0001;
+
+          if (d > this.spacing) {
+            const pull = d - this.spacing;
+            seg.x += (dx / d) * pull;
+            seg.y += (ddy / d) * pull;
+          }
+
+          seg.update(dt);
+        }
+
+        // Collisione diretta con il giocatore
+        for (const seg of this.segments) {
+          if (
+            circleRect(
+              seg.x,
+              seg.y,
+              seg.r,
+              g.player.x - g.player.w / 2,
+              g.player.y - g.player.h / 2,
+              g.player.w,
+              g.player.h
+            )
+          ) {
+            g.playerHit("centipede");
+            return;
+          }
+        }
+      }
+
+      drop() {
+        this.row++;
+        this.dir *= -1;
+        this.dropCooldown = 0.22;
+
+        this.game.audio.drop();
+
+        const head = this.segments[0];
+        if (head) {
+          head.y += this.game.cellH * 0.12;
+        }
+      }
+
+      removeDead() {
+        const before = this.segments.length;
+
+        this.segments = this.segments.filter((s) => s.alive);
+
+        if (this.segments.length) {
+          // Se la testa vecchia è stata distrutta, il primo segmento diventa testa
+          if (!this.segments[0].isHead) {
+            this.segments[0].isHead = true;
+            this.segments[0].color = NEON.magenta;
+          }
+        }
+
+        return before !== this.segments.length;
+      }
+    }
+
+    /* ============================================================
+       GAME - Controller principale
+       ============================================================ */
+    class Game {
+      constructor(ctx, input, audio) {
+        this.ctx = ctx;
+        this.input = input;
+        this.audio = audio;
+
+        this.state = "start"; // start | playing | gameover
+
+        this.score = 0;
+        this.lives = 3;
+        this.level = 1;
+
+        this.background = new Background();
+        this.player = new Player();
+        this.bullets = [];
+        this.particles = new ParticleSystem();
+
+        // Ostacoli salvati come Map: "col,row" -> Obstacle
+        this.obstacles = new Map();
+
+        this.centipedes = [];
+        this.shootCooldown = 0;
+
+        // Griglia logica
+        this.gridCols = 16;
+        this.gridRows = 18;
+        this.cellW = 0;
+        this.cellH = 0;
+
+        this.playerZoneTop = H * 0.74;
+
+        this.resize();
+
+        // Stato iniziale dietro la schermata Start
+        this.generateObstacles();
+        this.spawnCentipede();
+      }
+
+      resize() {
+        const oldW = this._oldW || W;
+        const oldH = this._oldH || H;
+
+        this._oldW = W;
+        this._oldH = H;
+
+        // Adatta la griglia logica alla risoluzione
+        this.gridCols = clamp(Math.floor(W / 52), 12, 28);
+        this.gridRows = clamp(Math.floor(H / 52), 14, 26);
+
+        this.cellW = W / this.gridCols;
+        this.cellH = H / this.gridRows;
+
+        this.playerZoneTop = H * 0.74;
+
+        this.player.resize(this.playerZoneTop);
+
+        // Ridimensiona entità esistenti in modo proporzionale
+        if (oldW !== W || oldH !== H) {
+          const sx = W / oldW || 1;
+          const sy = H / oldH || 1;
+
+          this.player.x *= sx;
+          this.player.y *= sy;
+
+          for (const b of this.bullets) {
+            b.x *= sx;
+            b.y *= sy;
+          }
+
+          for (const c of this.centipedes) {
+            for (const s of c.segments) {
+              s.x *= sx;
+              s.y *= sy;
+            }
+          }
+
+          for (const p of this.particles.items) {
+            p.x *= sx;
+            p.y *= sy;
+          }
+
+          for (const o of this.obstacles.values()) {
+            o.updateRect(this.cellW, this.cellH);
+          }
+        }
+
+        this.player.x = clamp(this.player.x, 20, W - 20);
+        this.player.y = clamp(this.player.y, this.playerZoneTop + 20, H - 20);
+
+        this.input.resize();
+      }
+
+      rowY(row) {
+        return row * this.cellH + this.cellH / 2;
+      }
+
+      start() {
+        this.state = "playing";
+
+        this.score = 0;
+        this.lives = 3;
+        this.level = 1;
+
+        this.bullets = [];
+        this.particles.clear();
+        this.centipedes = [];
+
+        this.input.reset();
+
+        this.generateObstacles();
+        this.spawnCentipede();
+
+        startScreen.classList.add("hidden");
+        gameOverScreen.classList.add("hidden");
+
+        this.audio.resume();
+      }
+
+      gameOver() {
+        this.state = "gameover";
+
+        finalScoreEl.textContent = this.score;
+        gameOverScreen.classList.remove("hidden");
+
+        this.audio.gameOver();
+      }
+
+      generateObstacles() {
+        this.obstacles.clear();
+
+        const count = clamp(16 + this.level * 4, 16, 60);
+        const minRow = 3;
+        const maxRow = this.gridRows - 6;
+
+        if (maxRow <= minRow) return;
+
+        let attempts = 0;
+
+        while (this.obstacles.size < count && attempts < count * 6) {
+          attempts++;
+
+          const col = randInt(1, this.gridCols - 2);
+          const row = randInt(minRow, maxRow);
+          const key = col + "," + row;
+
+          if (!this.obstacles.has(key)) {
+            this.obstacles.set(key, new Obstacle(col, row, this.cellW, this.cellH));
+          }
+        }
+      }
+
+      spawnCentipede() {
+        const length = clamp(8 + this.level * 2, 8, 26);
+        const speed = clamp(85 + this.level * 14, 85, 330);
+
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        const startX = dir === 1 ? W * 0.18 : W * 0.82;
+
+        this.centipedes.push(new Centipede(this, length, speed, 1, dir, startX));
+      }
+
+      addScore(value) {
+        this.score += value;
+      }
+
+      shoot() {
+        const bx = this.player.x;
+        const by = this.player.y - this.player.h / 2 - 6;
+
+        this.bullets.push(new Bullet(bx, by));
+        this.audio.shoot();
+      }
+
+      playerHit(source) {
+        if (this.state !== "playing") return;
+
+        const damaged = this.player.hit();
+
+        // Se un centipede raggiunge il giocatore, ripuliamo la scena
+        // anche se il giocatore è momentaneamente invulnerabile.
+        if (source === "centipede") {
+          this.bullets = [];
+          this.centipedes = [];
+
+          if (this.lives > 0) {
+            this.spawnCentipede();
+          }
+        }
+
+        if (!damaged) return;
+
+        this.lives--;
+
+        this.particles.emit(this.player.x, this.player.y, NEON.cyan, 36, 1.4);
+        this.particles.emit(this.player.x, this.player.y, NEON.magenta, 24, 1.1);
+
+        this.audio.playerHit();
+
+        if (this.lives <= 0) {
+          this.gameOver();
+        } else if (source !== "centipede") {
+          this.bullets = [];
+          this.centipedes = [];
+          this.spawnCentipede();
+        }
+      }
+
+      /**
+       * Quando un segmento del centopiedi viene distrutto,
+       * c'è una piccola probabilità di creare un ostacolo.
+       */
+      maybeSpawnObstacle(x, y, chance = 0.13) {
+        if (Math.random() > chance) return;
+
+        const col = clamp(Math.floor(x / this.cellW), 0, this.gridCols - 1);
+        const row = clamp(Math.floor(y / this.cellH), 0, this.gridRows - 1);
+
+        // Non spawnare ostacoli nella zona giocatore
+        if (this.rowY(row) > this.playerZoneTop - this.cellH) return;
+
+        const key = col + "," + row;
+
+        if (!this.obstacles.has(key)) {
+          this.obstacles.set(key, new Obstacle(col, row, this.cellW, this.cellH));
+        }
+      }
+
+      levelComplete() {
+        this.level++;
+        this.addScore(100);
+
+        this.audio.levelUp();
+
+        this.bullets = [];
+
+        this.particles.emit(W / 2, H * 0.35, NEON.yellow, 50, 1.6);
+
+        this.generateObstacles();
+        this.spawnCentipede();
+      }
+
+      update(dt) {
+        // Lo sfondo si anima sempre, anche nelle schermate
+        this.background.update(dt);
+        this.particles.update(dt);
+
+        if (this.state !== "playing") return;
+
+        this.shootCooldown -= dt;
+
+        this.player.update(dt, this.input);
+
+        // Sparo con cooldown
+        if (this.input.firing && this.shootCooldown <= 0) {
+          this.shoot();
+          this.shootCooldown = 0.16;
+        }
+
+        // Aggiorna proiettili
+        for (const b of this.bullets) {
+          b.update(dt);
+        }
+
+        // Collisioni proiettili -> ostacoli
+        for (const b of this.bullets) {
+          if (!b.active) continue;
+
+          for (const [key, o] of this.obstacles) {
+            if (o.intersectsBullet(b)) {
+              b.active = false;
+
+              const destroyed = o.hit();
+
+              const px = destroyed ? o.x : b.x;
+              const py = destroyed ? o.y : b.y;
+
+              this.particles.emit(
+                px,
+                py,
+                destroyed ? NEON.green : NEON.yellow,
+                destroyed ? 22 : 8,
+                destroyed ? 1.2 : 0.7
+              );
+
+              this.audio.obstacleHit();
+
+              if (destroyed) {
+                this.obstacles.delete(key);
+                this.addScore(5);
+              }
+
+              break;
+            }
+          }
+        }
+
+        // Collisioni proiettili -> centopiedi
+        for (const b of this.bullets) {
+          if (!b.active) continue;
+
+          for (const c of this.centipedes) {
+            for (let i = c.segments.length - 1; i >= 0; i--) {
+              const s = c.segments[i];
+
+              if (dist(b.x, b.y, s.x, s.y) < b.r + s.r) {
+                b.active = false;
+                s.alive = false;
+
+                this.addScore(10);
+
+                this.particles.emit(s.x, s.y, s.color, 26, 1.25);
+                this.audio.explosion();
+
+                this.maybeSpawnObstacle(s.x, s.y, 0.13);
+
+                break;
+              }
+            }
+
+            if (!b.active) break;
+          }
+        }
+
+        // Rimuovi proiettili morti
+        this.bullets = this.bullets.filter((b) => b.active);
+
+        // Rimuovi segmenti distrutti
+        for (const c of this.centipedes) {
+          c.removeDead();
+        }
+
+        // Rimuovi centopiedi completamente distrutti
+        this.centipedes = this.centipedes.filter((c) => c.alive);
+
+        // Se hai distrutto tutto, livello completato
+        if (this.centipedes.length === 0 && this.state === "playing") {
+          this.levelComplete();
+        }
+
+        // Aggiorna centopiedi
+        const activeCentipedes = this.centipedes.slice();
+
+        for (const c of activeCentipedes) {
+          if (this.state !== "playing") break;
+          c.update(dt);
+        }
+      }
+
+      draw() {
+        this.background.draw(ctx);
+
+        if (this.state === "playing" || this.state === "gameover") {
+          // Ostacoli
+          for (const o of this.obstacles.values()) {
+            o.draw(ctx);
+          }
+
+          // Centopiedi
+          for (const c of this.centipedes) {
+            for (const s of c.segments) {
+              s.draw(ctx);
+            }
+          }
+
+          // Proiettili
+          for (const b of this.bullets) {
+            b.draw(ctx);
+          }
+
+          // Giocatore
+          this.player.draw(ctx);
+
+          // Particelle
+          this.particles.draw(ctx);
+
+          this.drawHUD();
+        }
+
+        // Controlli touch solo durante il gioco
+        if (this.state === "playing") {
+          this.input.draw(ctx);
+        }
+      }
+
+      drawHUD() {
+        ctx.save();
+
+        ctx.textBaseline = "top";
+        ctx.font = '900 20px "Courier New", monospace';
+
+        // Punteggio
+        ctx.textAlign = "left";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = NEON.cyan;
+        ctx.fillStyle = NEON.cyan;
+        ctx.fillText("SCORE " + this.score, 16, 14);
+
+        // Livello
+        ctx.textAlign = "center";
+        ctx.shadowColor = NEON.yellow;
+        ctx.fillStyle = NEON.yellow;
+        ctx.fillText("LEVEL " + this.level, W / 2, 14);
+
+        // Vite
+        ctx.textAlign = "right";
+        ctx.shadowColor = NEON.magenta;
+        ctx.fillStyle = NEON.magenta;
+
+        let livesText = "";
+        for (let i = 0; i < this.lives; i++) {
+          livesText += "▲ ";
+        }
+
+        ctx.fillText(livesText.trim(), W - 16, 14);
+
+        ctx.restore();
+      }
+    }
+
+    /* ============================================================
+       INIZIALIZZAZIONE E GAME LOOP
+       ============================================================ */
+    const audio = new AudioManager();
+    const input = new InputManager(canvas);
+
+    game = new Game(ctx, input, audio);
+
+    function handleStart(e) {
+      if (e.cancelable) e.preventDefault();
+      game.start();
+    }
+
+    startBtn.addEventListener("click", handleStart);
+    restartBtn.addEventListener("click", handleStart);
+
+    // Su mobile rendiamo più reattivo il tocco dei pulsanti overlay
+    startBtn.addEventListener("touchend", handleStart, { passive: false });
+    restartBtn.addEventListener("touchend", handleStart, { passive: false });
+
+    // Sblocca l'audio al primo input utente
+    window.addEventListener("pointerdown", () => audio.resume());
+
+    // Game loop con requestAnimationFrame e deltaTime
+    let lastTime = performance.now();
+
+    function loop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.033);
+      lastTime = now;
+
+      if (game) {
+        game.update(dt);
+        game.draw();
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
