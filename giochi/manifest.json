@@ -39,5 +39,10 @@
         "id": "asteroid",
         "title": "asteroid",
         "desc": "asteroid"
+    },
+    {
+        "id": "sudoku",
+        "title": "sudoku",
+        "desc": "sudoku"
     }
 ]
