@@ -9,7 +9,8 @@
     { id: 'neonChess',  title: 'neonChess',   desc: "scacchi" },
     { id: 'centipede',  title: 'centipede',   desc: "centipede " },
     { id: 'neonDama',  title: 'neonDama',   desc: "neonDama " },
-    { id: 'asteroid',  title: 'asteroid',   desc: "asteroid " }
+    { id: 'asteroid',  title: 'asteroid',   desc: "asteroid " },
+    { id: 'sudoku',  title: 'sudoku',   desc: "sudoku " }
   ];
 
   var grid = document.getElementById('game-grid');
