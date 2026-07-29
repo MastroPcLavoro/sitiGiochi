@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04010c">
+<title>NEONSTORM // Protocollo Zero — Bullet Hell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body data-state="title">
+<div id="stage">
+  <canvas id="cv"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-top">
+      <div>
+        <div class="lbl">PUNTI</div>
+        <div id="score">0000000</div>
+        <div class="lbl">RECORD <span id="hiscore">0000000</span></div>
+      </div>
+      <div class="hud-mid">
+        <div id="level-name">SETTORE 01 // PERIFERIA URBANA</div>
+        <div id="wave-ind"></div>
+      </div>
+      <div class="hud-right">
+        <div class="lbl">GRAZE <span id="graze-v" style="color:#fff">0</span></div>
+        <div id="fps">60 FPS</div>
+        <div class="hbtns">
+          <button class="hbtn" id="btn-pause" title="Pausa (P)">❚❚</button>
+          <button class="hbtn" id="btn-mute" title="Audio (M)">♪</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bossbar">
+      <div id="boss-name"><span id="boss-name-t">BOSS</span><span id="bphase"><i></i><i></i><i></i></span></div>
+      <div class="bb-track"><div id="boss-fill"></div></div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="stat"><span class="lbl">INTEG</span><div class="pips" id="hp-pips"></div><div id="shield-ind"></div></div>
+      <div class="stat"><span class="lbl">ARMA</span><span id="weapon-name">PULSE</span><div class="pips" id="power-pips"></div></div>
+      <div class="stat"><span class="lbl">BOMBE</span><div class="pips" id="bomb-pips"></div></div>
+    </div>
+  </div>
+
+  <!-- Controlli touch -->
+  <div id="touchui">
+    <div id="stick"><div id="stick-base"></div><div id="stick-knob"></div></div>
+    <button id="btn-focus">FOCUS</button>
+    <button id="btn-bomb">BOMB<small>SPAZIO</small></button>
+  </div>
+
+  <!-- Banner / warning -->
+  <div id="banner"><div id="banner-big">SETTORE 01</div><div id="banner-sub">PERIFERIA URBANA</div><div id="banner-line"></div></div>
+  <div id="warning"><div class="wz top"></div><div id="warn-txt">⚠ ATTENZIONE ⚠</div><div id="warn-name">SENTINEL</div><div class="wz bot"></div></div>
+  <div id="mini"></div>
+
+  <!-- Titolo -->
+  <div id="screen-title" class="screen">
+    <div class="panel">
+      <div class="sys-line">SYS.BOOT // NEONSTORM v1.5 // ENGINE 60FPS ONLINE</div>
+      <h1 class="logo" data-t="NEONSTORM">NEON<b>STORM</b></h1>
+      <div class="tagline">// PROTOCOLLO ZERO · DANMAKU CYBERPUNK //</div>
+      <div class="chips">
+        <span class="chip" style="color:var(--cyan)"><i></i>PULSE</span>
+        <span class="chip" style="color:var(--mag)"><i></i>SPREAD</span>
+        <span class="chip" style="color:var(--lime)"><i></i>HOMING</span>
+        <span class="chip" style="color:var(--orange)"><i></i>LASER</span>
+        <span class="chip" style="color:var(--yellow)"><i></i>WAVE</span>
+        <span class="chip" style="color:#8ab6ff"><i></i>RAIL</span>
+        <span class="chip" style="color:var(--amber)"><i></i>ORBIT</span>
+      </div>
+      <div class="ctrls">
+        <div><h4>PC</h4><kbd>WASD</kbd>/<kbd>↑↓←→</kbd> muovi · <kbd>SHIFT</kbd> focus · <kbd>SPAZIO</kbd> bomba · <kbd>P</kbd> pausa</div>
+        <div><h4>MOBILE</h4>si gioca in verticale · stick sinistro per muovere · fuoco automatico · tasti <b style="color:var(--cyan)">FOCUS</b> e <b style="color:var(--red)">BOMBA</b></div>
+      </div>
+      <button id="btn-start" class="btn pulse">▶ AVVIA PROTOCOLLO</button>
+      <div class="hint blink">TOCCA O PREMI INVIO</div>
+      <div class="hiline">RECORD ATTUALE: <span id="title-hi">0000000</span></div>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="screen-over" class="screen hidden">
+    <div class="panel">
+      <h2 class="big2 over-h">SISTEMA COMPROMESSO</h2>
+      <div class="tagline">// CONNESSIONE INTERROTTA //</div>
+      <div id="newrec">◆ NUOVO RECORD ◆</div>
+      <div class="stats">
+        <div><b id="ov-score">0</b><span>PUNTI</span></div>
+        <div><b id="ov-hi">0</b><span>RECORD</span></div>
+        <div><b id="ov-kills">0</b><span>ELIMINATI</span></div>
+        <div><b id="ov-graze">0</b><span>GRAZE</span></div>
+        <div><b id="ov-level">1</b><span>SETTORE</span></div>
+      </div>
+      <div class="row">
+        <button id="btn-retry" class="btn danger">↻ RIGIOCA</button>
+        <button id="btn-menu1" class="btn ghost">MENU</button>
+      </div>
+      <div class="hint">INVIO PER RIGIOCARE</div>
+    </div>
+  </div>
+
+  <!-- Vittoria -->
+  <div id="screen-victory" class="screen hidden">
+    <div class="panel">
+      <h2 class="big2 win-h">PROTOCOLLO COMPLETATO</h2>
+      <div class="tagline">// NUCLEO DEL SISTEMA LIBERATO //</div>
+      <div id="newrec2">◆ NUOVO RECORD ◆</div>
+      <div class="stats">
+        <div><b id="vi-score">0</b><span>PUNTI</span></div>
+        <div><b id="vi-hi">0</b><span>RECORD</span></div>
+        <div><b id="vi-kills">0</b><span>ELIMINATI</span></div>
+        <div><b id="vi-graze">0</b><span>GRAZE</span></div>
+        <div><b id="vi-time">0:00</b><span>TEMPO</span></div>
+      </div>
+      <div class="row">
+        <button id="btn-again" class="btn">↻ NUOVA RUN</button>
+        <button id="btn-menu2" class="btn ghost">MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pausa -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel">
+      <h2 class="big2" style="color:var(--cyan);text-shadow:0 0 20px rgba(0,240,255,.6)">PAUSA</h2>
+      <div class="tagline">// FLUSSO SOSPESO //</div>
+      <div class="row" style="margin-top:22px">
+        <button id="btn-resume" class="btn">RIPRENDI</button>
+        <button id="btn-restart" class="btn ghost">RICOMINCIA</button>
+        <button id="btn-menu3" class="btn ghost">MENU</button>
+      </div>
+      <div class="hint">P / ESC PER RIPRENDERE</div>
+    </div>
+  </div>
+
+  <div id="fx-scan" class="fx"></div>
+  <div id="fx-vig" class="fx"></div>
+</div>
+
+<script src="game.js?v=15" defer></script>
+</body>
+</html>
