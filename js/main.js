@@ -10,7 +10,8 @@
     { id: 'centipede',  title: 'centipede',   desc: "centipede " },
     { id: 'neonDama',  title: 'neonDama',   desc: "neonDama " },
     { id: 'asteroid',  title: 'asteroid',   desc: "asteroid " },
-    { id: 'sudoku',  title: 'sudoku',   desc: "sudoku " }
+    { id: 'sudoku',  title: 'sudoku',   desc: "sudoku " },
+    { id: 'neonstorm',  title: 'neonstorm',   desc: "neonstorm " }
   ];
 
   var grid = document.getElementById('game-grid');
