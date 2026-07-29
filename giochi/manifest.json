@@ -44,5 +44,10 @@
         "id": "sudoku",
         "title": "sudoku",
         "desc": "sudoku"
+    },
+    {
+        "id": "neonstorm",
+        "title": "neonstorm",
+        "desc": "neonstorm"
     }
 ]
