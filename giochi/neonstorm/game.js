@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
-   NEONSTORM // Protocollo Zero — LOGICA DI GIOCO (v1.5)
+   NEONSTORM // Protocollo Zero — LOGICA DI GIOCO (v1.6)
    v1.3 fix proiettili "fantasma" · v1.4 fix transform leak ·
-   v1.5 mobile verticale + grafica scalata
+   v1.5 mobile verticale · v1.6 scudo AEGIS distruttibile
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 /* ════════ UTILS ════════ */
@@ -17,9 +17,7 @@ const store=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const load=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const rm=(a,i)=>{a[i]=a[a.length-1];a.pop();};
 
-/* ★ v1.5 — adattamento mobile: rilevamento touch, velocità colpi nemici
-   leggermente ridotta su schermi stretti, margine superiore più ampio
-   per lasciare spazio sotto la HUD compatta */
+/* ★ v1.5 — adattamento mobile */
 const COARSE=matchMedia('(pointer:coarse)').matches;
 const MSPD=COARSE?.9:1;
 const TOPB=COARSE?96:64;
@@ -118,6 +116,7 @@ const AU={
   },
   hurt(){this.tone({type:'sawtooth',f0:420,f1:50,dur:.4,vol:.4});this.noise({dur:.3,vol:.35,f:700,slide:120});},
   shield(){this.tone({type:'triangle',f0:1000,f1:320,dur:.22,vol:.3});},
+  shatter(){this.noise({dur:.25,vol:.35,f:2600,type:'highpass',slide:400});this.tone({type:'triangle',f0:900,f1:180,dur:.3,vol:.3});},
   power(){[520,680,900].forEach((f,i)=>this.tone({type:'square',f0:f,dur:.08,vol:.15,at:i*.06}));},
   pick(){this.tone({type:'triangle',f0:760,f1:1150,dur:.12,vol:.2});},
   bomb(){this.noise({dur:.8,vol:.55,f:2400,slide:80});this.tone({f0:70,f1:16,dur:.9,vol:.55});this.tone({type:'triangle',f0:1200,f1:200,dur:.5,vol:.1});},
@@ -294,7 +293,7 @@ function floatText(x,y,txt,color,size=13){if(texts.length>24)texts.shift();texts
 /* ════════ PROIETTILI ════════ */
 function eBullet(x,y,ang,spd,r,color,type){
   if(eBullets.length>=650)return null;
-  spd*=MSPD;                                             // ★ v1.5: colpi nemici -10% su touch
+  spd*=MSPD;
   const b={x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,r,color,type,t:0,grazed:false,turn:2.2,dead:false};
   eBullets.push(b);return b;
 }
@@ -311,6 +310,7 @@ function ringGapB(x,y,n,spd,color,r,type,gapA,gapSize){
 function homingOrb(x,y){const b=eBullet(x,y,angTo(x,y,player.x,player.y),120,9,COL.violet,'hom');if(b)b.turn=2.3;}
 
 /* ════════ NEMICI ════════ */
+/* ★ v1.6 — AEGIS: shp = resistenza dello scudo (scala con il settore) */
 const EDEF={
   drone:{hp:16,r:14,score:100,color:COL.mag},
   weaver:{hp:24,r:14,score:150,color:COL.violet},
@@ -318,18 +318,29 @@ const EDEF={
   dart:{hp:8,r:10,score:80,color:COL.red},
   splitter:{hp:130,r:26,score:300,color:COL.orange},
   sniper:{hp:30,r:13,score:220,color:COL.red},
-  aegis:{hp:110,r:22,score:350,color:COL.green}};
+  aegis:{hp:110,r:22,score:350,color:COL.green,shp:60}};
 function spawnEnemy(type,fx){
   const d=EDEF[type],hs=(1+G.level*.35)*(1+G.wave*.04),x=fx*W;
+  const shp=d.shp?d.shp*hs:0;
   const e={type,x,y:-30,bx:x,t:0,ph:rand(TAU),fireT:rand(.8,1.6),hp:d.hp*hs,r:d.r,score:d.score,
     color:d.color,flash:0,spd:type==='dart'?120:0,ang:angTo(x,-30,player.x,player.y),
     ty:type==='turret'?rand(110,Math.min(190,H*.4)):
        type==='sniper'?rand(100,Math.min(230,H*.38)):
        type==='aegis'?rand(120,Math.min(240,H*.45)):0,
-    shA:Math.PI/2,aim:type==='sniper'?rand(1.4,2.2):0,aimAng:Math.PI/2,dead:false};
+    shA:Math.PI/2,aim:type==='sniper'?rand(1.4,2.2):0,aimAng:Math.PI/2,
+    shHp:shp,shMax:shp||1,shBroken:false,shFlash:0,dead:false};
   enemies.push(e);
   rings.push({x,y:10,r:4,vr:200,life:.25,max:.25,color:d.color,w:1.5});
   return e;
+}
+/* ★ v1.6 — lo scudo si spezza: ogni arma contribuisce, mai più soft-lock */
+function shatterShield(e){
+  if(e.shBroken)return;
+  e.shBroken=true;e.shHp=0;
+  explode(e.x,e.y,COL.cyan,12,.8);
+  rings.push({x:e.x,y:e.y,r:e.r,vr:280,life:.3,max:.3,color:'#bfeaff',w:2.5});
+  floatText(e.x,e.y-e.r-10,'SCUDO ROTTO',COL.cyan,12);
+  AU.shatter();shake(3,.12);
 }
 function updateEnemies(dt){
   const hs=G.diff;
@@ -373,15 +384,18 @@ function updateEnemies(dt){
         }
       }
     }else if(e.type==='aegis'){
+      e.shFlash=Math.max(0,e.shFlash-dt);
       if(e.y<e.ty)e.y+=55*dt;
       else{
         e.x=e.bx+Math.sin(e.t*.7+e.ph)*30;
         e.fireT-=dt;
         if(e.fireT<=0){e.fireT=2.8/hs;ringB(e.x,e.y,6,110*hs,COL.green,5,'pellet',rand(TAU));}
       }
-      const want=angTo(e.x,e.y,player.x,player.y);
-      const d=angDiff(want,e.shA);
-      e.shA+=clamp(d,-1.7*dt,1.7*dt);
+      if(!e.shBroken){
+        const want=angTo(e.x,e.y,player.x,player.y);
+        const d=angDiff(want,e.shA);
+        e.shA+=clamp(d,-1.7*dt,1.7*dt);
+      }
     }
     if(player.alive&&player.inv<=0&&G.state==='play'&&
        dist2(e.x,e.y,player.x,player.y)<(e.r+player.r)*(e.r+player.r)){playerHit();}
@@ -454,7 +468,7 @@ function updatePlayer(dt){
   if(stick.active){dx+=stick.dx/56;dy+=stick.dy/56;}
   const m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m;}
   player.focus=!!(keys.ShiftLeft||keys.ShiftRight||touchFocus);
-  const spd=(player.focus?155:365)*(COARSE&&W<520?.92:1); // ★ v1.5: velocità leggermente ridotta su schermi stretti
+  const spd=(player.focus?155:365)*(COARSE&&W<520?.92:1);
   player.x=clamp(player.x+dx*spd*dt,14,W-14);
   player.y=clamp(player.y+dy*spd*dt,TOPB,H-16);
   player.inv-=dt;
@@ -471,7 +485,13 @@ function updatePlayer(dt){
       const dmg=3+player.power;
       for(const b of orbitBlades()){
         for(const e of enemies){if(e.dead)continue;
-          if(dist2(b.x,b.y,e.x,e.y)<(16+e.r)*(16+e.r)){damageEnemy(e,dmg);sparkAt(b.x,b.y,COL.amber);}}
+          if(dist2(b.x,b.y,e.x,e.y)<(16+e.r)*(16+e.r)){
+            /* ★ v1.6 — le lame rispettano lo scudo (se integro e orientato verso la lama) */
+            if(e.type==='aegis'&&!e.shBroken&&Math.abs(angDiff(Math.atan2(b.y-e.y,b.x-e.x),e.shA))<.95){
+              e.shHp-=dmg;e.shFlash=.12;if(e.shHp<=0)shatterShield(e);
+            }else damageEnemy(e,dmg);
+            sparkAt(b.x,b.y,COL.amber);
+          }}
         for(const q of bossParts())
           if(dist2(b.x,b.y,q.x,q.y)<(16+q.r)*(16+q.r))damageBoss(dmg);
       }
@@ -509,10 +529,15 @@ function laserDamage(dt){
   for(const e of enemies){
     if(e.dead)continue;
     if(e.y<player.y&&Math.abs(e.x-player.x)<bw+e.r){
-      if(e.type==='aegis'){
+      /* ★ v1.6 — il laser consuma lo scudo invece di essere bloccato per sempre */
+      if(e.type==='aegis'&&!e.shBroken){
         const down=angTo(e.x,e.y,player.x,player.y);
         if(Math.abs(angDiff(down,e.shA))<.95){
-          if(Math.random()<.3)sparkAt(e.x,e.y+e.r*.6,'#bfeaff');continue;}
+          e.shHp-=dps*dt;e.shFlash=.1;
+          if(e.shHp<=0)shatterShield(e);
+          if(Math.random()<.3)sparkAt(e.x,e.y+e.r*.6,'#bfeaff');
+          continue;
+        }
       }
       damageEnemy(e,dps*dt);
       if(Math.random()<.25)sparkAt(player.x+rand(-bw,bw),e.y,COL.orange);
@@ -547,6 +572,7 @@ function updatePBullets(dt){
     if(p.y<-30||p.y>H+30||p.x<-30||p.x>W+30||p.t>4){rm(pBullets,i);continue;}
     let hit=false;
     if(p.kind==='rail'){
+      /* il RAIL ignora lo scudo: perfora e danneggia direttamente lo scafo */
       for(const e of enemies){if(e.dead||p.hits.has(e))continue;const rr=e.r+p.r+2;
         if(dist2(p.x,p.y,e.x,e.y)<rr*rr){p.hits.add(e);damageEnemy(e,p.dmg);sparkAt(p.x,p.y,p.color);
           if(--p.pierce<=0){hit=true;break;}}}
@@ -558,9 +584,14 @@ function updatePBullets(dt){
         if(e.dead)continue;
         const rr=e.r+p.r+2;
         if(dist2(p.x,p.y,e.x,e.y)<rr*rr){
-          if(e.type==='aegis'){
+          /* ★ v1.6 — i colpi bloccati dallo scudo ora consumano la sua resistenza */
+          if(e.type==='aegis'&&!e.shBroken){
             const ba=Math.atan2(p.y-e.y,p.x-e.x);
-            if(Math.abs(angDiff(ba,e.shA))<.95){sparkAt(p.x,p.y,'#bfeaff');hit=true;break;}
+            if(Math.abs(angDiff(ba,e.shA))<.95){
+              e.shHp-=p.dmg;e.shFlash=.12;sparkAt(p.x,p.y,'#bfeaff');
+              if(e.shHp<=0)shatterShield(e);
+              hit=true;break;
+            }
           }
           damageEnemy(e,p.dmg);sparkAt(p.x,p.y,p.color);hit=true;break;}}
       if(!hit)for(const q of bossParts()){const rr=q.r+p.r;
@@ -620,7 +651,11 @@ function doBomb(){
   let g=0;
   for(let i=0;i<eBullets.length;i++){g+=5;if(i%3===0)sparkAt(eBullets[i].x,eBullets[i].y,COL.cyan);}
   eBullets.length=0;G.score+=g;
-  const snap=enemies.slice();for(const e of snap)damageEnemy(e,60);
+  const snap=enemies.slice();
+  for(const e of snap){
+    if(e.type==='aegis'&&!e.shBroken)shatterShield(e);   // ★ v1.6 — la bomba frantuma gli scudi
+    damageEnemy(e,60);
+  }
   damageBoss(110);
   floatText(player.x,player.y-40,'BOMB!',COL.amber,20);
 }
@@ -972,13 +1007,18 @@ function drawEnemies(){
       hexPath(e.r-4);ctx.fill();ctx.stroke();
       ctx.strokeStyle='rgba(57,255,136,.55)';ctx.beginPath();ctx.arc(0,0,9,0,TAU);ctx.stroke();
       ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,3.5,0,TAU);ctx.fill();
-      ctx.save();ctx.rotate(e.shA);
-      ctx.globalCompositeOperation='lighter';
-      ctx.strokeStyle='rgba(0,240,255,.45)';ctx.lineWidth=9;
-      ctx.beginPath();ctx.arc(0,0,e.r+7,-.9,.9);ctx.stroke();
-      ctx.strokeStyle='#dff6ff';ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(0,0,e.r+7,-.95,.95);ctx.stroke();
-      ctx.restore();}
+      /* ★ v1.6 — scudo: intensità proporzionale alla resistenza, lampo bianco quando incassa */
+      if(!e.shBroken){
+        const sa=(.3+.7*clamp(e.shHp/e.shMax,0,1))*(e.shFlash>0?1:.85);
+        ctx.save();ctx.rotate(e.shA);
+        ctx.globalCompositeOperation='lighter';ctx.globalAlpha=sa;
+        ctx.strokeStyle=e.shFlash>0?'#ffffff':'rgba(0,240,255,.45)';ctx.lineWidth=9;
+        ctx.beginPath();ctx.arc(0,0,e.r+7,-.9,.9);ctx.stroke();
+        ctx.strokeStyle='#dff6ff';ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(0,0,e.r+7,-.95,.95);ctx.stroke();
+        ctx.restore();ctx.globalAlpha=1;
+      }
+    }
     ctx.restore();
     if(e.type==='turret'&&e.fireT<.45&&e.y>=e.ty-2&&player.alive){
       ctx.strokeStyle='rgba(255,179,0,.3)';ctx.setLineDash([4,6]);ctx.lineWidth=1;
@@ -1174,3 +1214,4 @@ resize();
 elMute.textContent=AU.muted?'✕':'♪';elMute.classList.toggle('off',AU.muted);
 elTitleHi.textContent=String(G.hi).padStart(7,'0');
 requestAnimationFrame(loop);
+</script>
