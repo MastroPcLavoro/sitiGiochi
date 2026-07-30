@@ -1214,4 +1214,4 @@ resize();
 elMute.textContent=AU.muted?'✕':'♪';elMute.classList.toggle('off',AU.muted);
 elTitleHi.textContent=String(G.hi).padStart(7,'0');
 requestAnimationFrame(loop);
-</script>
+
