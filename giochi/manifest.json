@@ -46,6 +46,11 @@
         "desc": "sudoku"
     },
     {
+        "id": "tris",
+        "title": "Tris Neon",
+        "desc": "Il classico gioco del Tris in stile neon"
+    },
+    {
         "id": "neonstorm",
         "title": "neonstorm",
         "desc": "neonstorm"
