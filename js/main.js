@@ -1,21 +1,27 @@
 (function () {
   'use strict';
 
-  var GIOCHI = [
-    { id: 'neonStrike',title: 'Neon Strike', desc: 'Retro Arcade SHMUP' },
-    { id: 'neonVoid',  title: 'Neon Void',   desc: "Shoot 'em up spaziale" },
-    { id: 'neonVoidV2',  title: 'Neon Void V2',   desc: "Shoot 'em up spaziale V2" },
-    { id: 'tetris',  title: 'tetris',   desc: "tetris" },
-    { id: 'neonChess',  title: 'neonChess',   desc: "scacchi" },
-    { id: 'centipede',  title: 'centipede',   desc: "centipede " },
-    { id: 'neonDama',  title: 'neonDama',   desc: "neonDama " },
-    { id: 'asteroid',  title: 'asteroid',   desc: "asteroid " },
-    { id: 'sudoku',  title: 'sudoku',   desc: "sudoku " },
-    { id: 'neonstorm',  title: 'neonstorm',   desc: "neonstorm " }
-  ];
-
+  var GIOCHI = [];
   var grid = document.getElementById('game-grid');
   var searchInput = document.getElementById('search-input');
+
+  function caricaGiochi() {
+    return fetch('giochi/manifest.json')
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento del manifest');
+        }
+        return response.json();
+      })
+      .then(function(data) {
+        GIOCHI = data;
+        stampaGriglia('');
+      })
+      .catch(function(err) {
+        console.error('Errore caricamento giochi:', err);
+        grid.innerHTML = '<div class="no-results"><p>Errore nel caricamento dei giochi</p></div>';
+      });
+  }
 
   function creaStelle() {
     var c = document.getElementById('stars');
@@ -85,5 +91,5 @@
   });
 
   creaStelle();
-  stampaGriglia('');
+  caricaGiochi();
 })();
