@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tris Neon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            text-shadow: 
+                0 0 5px #0ff,
+                0 0 10px #0ff,
+                0 0 20px #0ff,
+                0 0 40px #0ff;
+            animation: pulse 2s ease-in-out infinite;
+            text-align: center;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .mode-btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background: transparent;
+            border: 2px solid #0ff;
+            color: #0ff;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        .mode-btn:hover, .mode-btn.active {
+            background: #0ff;
+            color: #0a0a0a;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            max-width: 400px;
+            width: 100%;
+            aspect-ratio: 1;
+        }
+
+        .cell {
+            background: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            aspect-ratio: 1;
+        }
+
+        .cell:hover {
+            border-color: #0ff;
+            box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .cell.x {
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+        }
+
+        .cell.o {
+            color: #f0f;
+            text-shadow: 0 0 10px #f0f, 0 0 20px #f0f;
+        }
+
+        .status {
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 15px 0;
+            min-height: 30px;
+            text-shadow: 0 0 5px currentColor;
+        }
+
+        .reset-btn {
+            padding: 12px 30px;
+            font-size: 1rem;
+            background: transparent;
+            border: 2px solid #f0f;
+            color: #f0f;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 5px #f0f;
+        }
+
+        .reset-btn:hover {
+            background: #f0f;
+            color: #0a0a0a;
+            box-shadow: 0 0 20px #f0f;
+        }
+
+        .winning-cell {
+            background: rgba(0, 255, 255, 0.2) !important;
+            animation: winPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes winPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 2rem;
+                letter-spacing: 2px;
+            }
+
+            .cell {
+                font-size: 2rem;
+            }
+
+            .mode-btn, .reset-btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+
+            .status {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>TRIS NEON</h1>
+    
+    <div class="game-container">
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="pvp">2 Giocatori</button>
+            <button class="mode-btn" data-mode="pvc">Vs PC</button>
+        </div>
+
+        <div class="status" id="status">Turno di X</div>
+
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+
+        <button class="reset-btn" id="resetBtn">Nuova Partita</button>
+    </div>
+
+    <script>
+        class TrisGame {
+            constructor() {
+                this.board = ['', '', '', '', '', '', '', '', ''];
+                this.currentPlayer = 'X';
+                this.gameActive = true;
+                this.mode = 'pvp'; // 'pvp' or 'pvc'
+                
+                this.statusEl = document.getElementById('status');
+                this.boardEl = document.getElementById('board');
+                this.cells = document.querySelectorAll('.cell');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.modeBtns = document.querySelectorAll('.mode-btn');
+
+                this.winningCombinations = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // righe
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // colonne
+                    [0, 4, 8], [2, 4, 6]             // diagonali
+                ];
+
+                this.init();
+            }
+
+            init() {
+                this.cells.forEach(cell => {
+                    cell.addEventListener('click', (e) => this.handleCellClick(e));
+                });
+
+                this.resetBtn.addEventListener('click', () => this.resetGame());
+
+                this.modeBtns.forEach(btn => {
+                    btn.addEventListener('click', (e) => this.setMode(e.target.dataset.mode));
+                });
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                this.modeBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                });
+                this.resetGame();
+            }
+
+            handleCellClick(e) {
+                const cell = e.target;
+                const index = parseInt(cell.dataset.index);
+
+                if (this.board[index] !== '' || !this.gameActive) return;
+
+                this.makeMove(index, this.currentPlayer);
+
+                if (this.gameActive && this.mode === 'pvc' && this.currentPlayer === 'O') {
+                    setTimeout(() => this.computerMove(), 500);
+                }
+            }
+
+            makeMove(index, player) {
+                this.board[index] = player;
+                const cell = this.cells[index];
+                cell.textContent = player;
+                cell.classList.add(player.toLowerCase());
+
+                if (this.checkWin()) {
+                    this.endGame(false);
+                } else if (this.checkDraw()) {
+                    this.endGame(true);
+                } else {
+                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                    this.statusEl.textContent = `Turno di ${this.currentPlayer}`;
+                    this.statusEl.style.color = this.currentPlayer === 'X' ? '#0ff' : '#f0f';
+                }
+            }
+
+            computerMove() {
+                if (!this.gameActive) return;
+
+                // Try to win
+                let move = this.findBestMove('O');
+                
+                // Block opponent
+                if (move === -1) {
+                    move = this.findBestMove('X');
+                }
+
+                // Take center if available
+                if (move === -1 && this.board[4] === '') {
+                    move = 4;
+                }
+
+                // Take random available
+                if (move === -1) {
+                    const available = this.board
+                        .map((val, idx) => val === '' ? idx : null)
+                        .filter(val => val !== null);
+                    move = available[Math.floor(Math.random() * available.length)];
+                }
+
+                this.makeMove(move, 'O');
+            }
+
+            findBestMove(player) {
+                for (let combo of this.winningCombinations) {
+                    const [a, b, c] = combo;
+                    const values = [this.board[a], this.board[b], this.board[c]];
+                    
+                    const count = values.filter(v => v === player).length;
+                    const empty = values.filter(v => v === '').length;
+
+                    if (count === 2 && empty === 1) {
+                        if (this.board[a] === '') return a;
+                        if (this.board[b] === '') return b;
+                        if (this.board[c] === '') return c;
+                    }
+                }
+                return -1;
+            }
+
+            checkWin() {
+                for (let i = 0; i < this.winningCombinations.length; i++) {
+                    const [a, b, c] = this.winningCombinations[i];
+                    if (this.board[a] && 
+                        this.board[a] === this.board[b] && 
+                        this.board[a] === this.board[c]) {
+                        
+                        this.cells[a].classList.add('winning-cell');
+                        this.cells[b].classList.add('winning-cell');
+                        this.cells[c].classList.add('winning-cell');
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            checkDraw() {
+                return this.board.every(cell => cell !== '');
+            }
+
+            endGame(isDraw) {
+                this.gameActive = false;
+                if (isDraw) {
+                    this.statusEl.textContent = 'Pareggio!';
+                    this.statusEl.style.color = '#fff';
+                } else {
+                    this.statusEl.textContent = `Vince ${this.currentPlayer}!`;
+                    this.statusEl.style.color = this.currentPlayer === 'X' ? '#0ff' : '#f0f';
+                }
+            }
+
+            resetGame() {
+                this.board = ['', '', '', '', '', '', '', '', ''];
+                this.currentPlayer = 'X';
+                this.gameActive = true;
+                this.statusEl.textContent = 'Turno di X';
+                this.statusEl.style.color = '#0ff';
+
+                this.cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('x', 'o', 'winning-cell');
+                });
+            }
+        }
+
+        // Initialize game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new TrisGame();
+        });
+    </script>
+</body>
+</html>
